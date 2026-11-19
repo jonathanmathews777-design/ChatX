@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">ChatX</string>
+    <string name="notification_listener_label">ChatX Personal WhatsApp Bridge</string>
+    <string name="tagline_minimal">PRIVATE. INVITE-ONLY. END-TO-END ENCRYPTED.</string>
+    <string name="transport_connect_title">Connect Secure Cloud Session</string>
+    <string name="transport_connect_subtitle">Authenticate your device transport session to reach the ChatX encrypted directory and access gate.</string>
+    <string name="btn_connect_google">Continue with Google Transport</string>
+    <string name="login_tab_signin">Sign In</string>
+    <string name="login_tab_redeem">Redeem Invite</string>
+    <string name="super_admin_claim_title">Super Admin Bootstrap</string>
+    <string name="super_admin_claim_subtitle">You are verified as the sole Super Administrator. Set your ChatX username and password to initialize the workspace.</string>
+    <string name="pending_approval_title">Awaiting Super Admin Approval</string>
+    <string name="pending_approval_subtitle">Your invite code was redeemed. Access will unlock automatically once the Super Administrator approves your membership.</string>
+    <string name="suspended_title">Account Suspended</string>
+    <string name="suspended_subtitle">Your ChatX membership has been suspended by the Super Administrator.</string>
+    <string name="inbox_filter_all">All</string>
+    <string name="inbox_filter_chatx">ChatX</string>
+    <string name="inbox_filter_whatsapp">WhatsApp</string>
+    <string name="wa_personal_disclaimer">Showing active WhatsApp notification previews only. Full chat history is not synchronized and automated replies are disabled.</string>
+    <string name="wa_business_window_closed">24h customer service window closed. Only approved Meta template messages are permitted until the customer replies.</string>
+    <string name="error_generic">Unable to complete operation. Please try again.</string>
+</resources>

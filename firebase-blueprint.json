@@ -1,0 +1,140 @@
+{
+  "entities": {
+    "MemberProfile": {
+      "title": "MemberProfile",
+      "description": "Public directory profile and E2EE public key metadata for an invited ChatX member or the sole Super Admin.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID of the member." },
+        "username": { "type": "string", "description": "Unique lowercase ChatX handle (3-30 chars)." },
+        "displayName": { "type": "string", "description": "Display name shown in conversations." },
+        "role": { "type": "string", "enum": ["SUPER_ADMIN", "MEMBER"], "description": "Authorization role." },
+        "status": { "type": "string", "enum": ["ACTIVE", "PENDING", "SUSPENDED"], "description": "Membership lifecycle status." },
+        "publicKeyBase64": { "type": "string", "description": "Base64-encoded X.509 ECDH P-256 public key for E2EE." },
+        "keyFingerprint": { "type": "string", "description": "SHA-256 safety fingerprint of the member public key." },
+        "online": { "type": "boolean", "description": "Online presence flag." },
+        "lastSeenAt": { "type": "string", "format": "date-time", "description": "Server timestamp of last activity." },
+        "inviteCodeId": { "type": "string", "description": "Single-use invitation code redeemed during registration." },
+        "phoneE164": { "type": "string", "description": "Optional phone number for native WhatsApp deep-linking." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp." }
+      },
+      "required": ["uid", "username", "displayName", "role", "status", "publicKeyBase64", "keyFingerprint", "online", "createdAt", "updatedAt"]
+    },
+    "MemberSecret": {
+      "title": "MemberSecret",
+      "description": "Private salted PBKDF2-HMAC-SHA256 password hash and PII isolated from directory reads.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "passwordHash": { "type": "string", "description": "Base64 PBKDF2-HMAC-SHA256 derived key." },
+        "passwordSalt": { "type": "string", "description": "Base64 16-byte random salt." },
+        "email": { "type": "string", "description": "Authenticated transport email (owner & super admin only)." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "passwordHash", "passwordSalt", "createdAt", "updatedAt"]
+    },
+    "UsernameEntry": {
+      "title": "UsernameEntry",
+      "description": "Username uniqueness reservation mapping normalized username to UID.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "createdAt"]
+    },
+    "Invitation": {
+      "title": "Invitation",
+      "description": "Admin-generated single-use invitation code for invite-only registration.",
+      "type": "object",
+      "properties": {
+        "createdByUid": { "type": "string" },
+        "label": { "type": "string", "description": "Optional recipient note set by Super Admin." },
+        "autoApprove": { "type": "boolean", "description": "Whether redemption activates immediately or awaits approval." },
+        "used": { "type": "boolean" },
+        "revoked": { "type": "boolean" },
+        "usedByUid": { "type": "string" },
+        "usedByUsername": { "type": "string" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["createdByUid", "label", "autoApprove", "used", "revoked", "expiresAt", "createdAt", "updatedAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "1-to-1 or group ChatX E2EE conversation metadata.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["DIRECT", "GROUP"] },
+        "title": { "type": "string" },
+        "participantUids": { "type": "array" },
+        "adminUid": { "type": "string" },
+        "lastMessagePreview": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "disappearingSeconds": { "type": "integer" },
+        "typingUids": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "title", "participantUids", "adminUid", "lastMessagePreview", "disappearingSeconds", "typingUids", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "End-to-end encrypted message inside a ChatX conversation.",
+      "type": "object",
+      "properties": {
+        "conversationId": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "senderUsername": { "type": "string" },
+        "participantUids": { "type": "array" },
+        "messageType": { "type": "string", "enum": ["TEXT", "IMAGE", "VIDEO", "DOCUMENT", "VOICE"] },
+        "ciphertextBase64": { "type": "string" },
+        "ivBase64": { "type": "string" },
+        "encryptionScheme": { "type": "string" },
+        "attachmentName": { "type": "string" },
+        "attachmentMimeType": { "type": "string" },
+        "attachmentSizeBytes": { "type": "integer" },
+        "voiceDurationMs": { "type": "integer" },
+        "deliveryStatus": { "type": "string", "enum": ["SENT", "DELIVERED", "READ"] },
+        "readByUids": { "type": "array" },
+        "edited": { "type": "boolean" },
+        "deleted": { "type": "boolean" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["conversationId", "senderUid", "senderUsername", "participantUids", "messageType", "ciphertextBase64", "ivBase64", "encryptionScheme", "deliveryStatus", "readByUids", "edited", "deleted", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/members/{uid}": {
+      "schema": { "$ref": "#/entities/MemberProfile" },
+      "description": "Public directory profiles for approved/pending ChatX members and Super Admin."
+    },
+    "/member_secrets/{uid}": {
+      "schema": { "$ref": "#/entities/MemberSecret" },
+      "description": "Private salted PBKDF2 password hashes and PII restricted to owner and Super Admin."
+    },
+    "/username_directory/{usernameLower}": {
+      "schema": { "$ref": "#/entities/UsernameEntry" },
+      "description": "Username uniqueness registry."
+    },
+    "/invitations/{codeId}": {
+      "schema": { "$ref": "#/entities/Invitation" },
+      "description": "Single-use Super Admin invitation codes."
+    },
+    "/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "1-to-1 and group ChatX conversations."
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Encrypted ChatX messages with denormalized participantUids."
+    }
+  }
+}

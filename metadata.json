@@ -1,0 +1,6 @@
+{
+  "name": "ChatX",
+  "description": "Minimalist black-and-white invite-only secure messaging app with super-admin controls and WhatsApp unified inbox integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

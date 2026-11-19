@@ -1,0 +1,331 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Bootstrapped sole Super Administrator verified by Google OAuth token claim
+    function isSuperAdminToken() {
+      return isSignedIn() &&
+             request.auth.token.email == 'jonathan.mathews777@gmail.com' &&
+             request.auth.token.email_verified == true;
+    }
+
+    function isValidMemberProfile(data) {
+      return data.uid is string && isValidId(data.uid) &&
+             data.username is string && data.username.size() >= 3 && data.username.size() <= 30 &&
+             data.username.matches('^[a-z0-9_\\-]+$') &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60 &&
+             data.role in ['SUPER_ADMIN', 'MEMBER'] &&
+             data.status in ['ACTIVE', 'PENDING', 'SUSPENDED'] &&
+             data.publicKeyBase64 is string && data.publicKeyBase64.size() >= 20 && data.publicKeyBase64.size() <= 512 &&
+             data.keyFingerprint is string && data.keyFingerprint.size() >= 16 && data.keyFingerprint.size() <= 128 &&
+             data.online is bool &&
+             (!('lastSeenAt' in data) || data.lastSeenAt == null || (data.lastSeenAt is timestamp && data.lastSeenAt <= request.time)) &&
+             (!('inviteCodeId' in data) || data.inviteCodeId == null || isValidId(data.inviteCodeId)) &&
+             (!('phoneE164' in data) || data.phoneE164 == null || (data.phoneE164 is string && data.phoneE164.size() <= 24)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidMemberSecret(data) {
+      return data.uid is string && isValidId(data.uid) &&
+             data.username is string && data.username.size() >= 3 && data.username.size() <= 30 &&
+             data.passwordHash is string && data.passwordHash.size() >= 32 && data.passwordHash.size() <= 256 &&
+             data.passwordSalt is string && data.passwordSalt.size() >= 16 && data.passwordSalt.size() <= 128 &&
+             (!('email' in data) || data.email == null || (data.email is string && data.email.size() <= 160)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidUsernameEntry(data) {
+      return data.uid is string && isValidId(data.uid) &&
+             data.username is string && data.username.size() >= 3 && data.username.size() <= 30 &&
+             data.username.matches('^[a-z0-9_\\-]+$') &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidInvitation(data) {
+      return data.createdByUid is string && isValidId(data.createdByUid) &&
+             data.label is string && data.label.size() <= 80 &&
+             data.autoApprove is bool &&
+             data.used is bool &&
+             data.revoked is bool &&
+             (!('usedByUid' in data) || data.usedByUid == null || isValidId(data.usedByUid)) &&
+             (!('usedByUsername' in data) || data.usedByUsername == null || (data.usedByUsername is string && data.usedByUsername.size() >= 3 && data.usedByUsername.size() <= 30)) &&
+             data.expiresAt is timestamp &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidConversation(data) {
+      return data.type in ['DIRECT', 'GROUP'] &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 80 &&
+             data.participantUids is list && data.participantUids.size() >= 1 && data.participantUids.size() <= 50 &&
+             data.participantUids[0] is string &&
+             data.adminUid is string && isValidId(data.adminUid) &&
+             data.lastMessagePreview is string && data.lastMessagePreview.size() <= 200 &&
+             (!('lastMessageAt' in data) || data.lastMessageAt == null || (data.lastMessageAt is timestamp && data.lastMessageAt <= request.time)) &&
+             data.disappearingSeconds is int && data.disappearingSeconds >= 0 && data.disappearingSeconds <= 2592000 &&
+             data.typingUids is list && data.typingUids.size() <= 50 &&
+             (data.typingUids.size() == 0 || data.typingUids[0] is string) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidChatMessage(data) {
+      return data.conversationId is string && isValidId(data.conversationId) &&
+             data.senderUid is string && isValidId(data.senderUid) &&
+             data.senderUsername is string && data.senderUsername.size() >= 3 && data.senderUsername.size() <= 30 &&
+             data.participantUids is list && data.participantUids.size() >= 1 && data.participantUids.size() <= 50 &&
+             data.participantUids[0] is string &&
+             data.messageType in ['TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT', 'VOICE'] &&
+             data.ciphertextBase64 is string && data.ciphertextBase64.size() >= 1 && data.ciphertextBase64.size() <= 32768 &&
+             data.ivBase64 is string && data.ivBase64.size() >= 8 && data.ivBase64.size() <= 128 &&
+             data.encryptionScheme is string && data.encryptionScheme.size() >= 4 && data.encryptionScheme.size() <= 64 &&
+             (!('attachmentName' in data) || data.attachmentName == null || (data.attachmentName is string && data.attachmentName.size() <= 200)) &&
+             (!('attachmentMimeType' in data) || data.attachmentMimeType == null || (data.attachmentMimeType is string && data.attachmentMimeType.size() <= 120)) &&
+             (!('attachmentSizeBytes' in data) || data.attachmentSizeBytes == null || (data.attachmentSizeBytes is int && data.attachmentSizeBytes >= 0)) &&
+             (!('voiceDurationMs' in data) || data.voiceDurationMs == null || (data.voiceDurationMs is int && data.voiceDurationMs >= 0 && data.voiceDurationMs <= 3600000)) &&
+             data.deliveryStatus in ['SENT', 'DELIVERED', 'READ'] &&
+             data.readByUids is list && data.readByUids.size() <= 50 &&
+             (data.readByUids.size() == 0 || data.readByUids[0] is string) &&
+             data.edited is bool &&
+             data.deleted is bool &&
+             (!('expiresAt' in data) || data.expiresAt == null || data.expiresAt is timestamp) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // 1. Member directory profiles (no password hashes or emails here)
+    match /members/{uid} {
+      allow get: if isSignedIn() && isValidId(uid) &&
+                    (request.auth.uid == uid || resource.data.status == 'ACTIVE' || isSuperAdminToken());
+      allow list: if isSignedIn() &&
+                     (resource.data.uid == request.auth.uid || resource.data.status == 'ACTIVE' || isSuperAdminToken());
+
+      allow create: if isSignedIn() &&
+                       isValidId(uid) &&
+                       request.auth.uid == uid &&
+                       incoming().uid == uid &&
+                       incoming().keys().hasAll(['uid', 'username', 'displayName', 'role', 'status', 'publicKeyBase64', 'keyFingerprint', 'online', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['uid', 'username', 'displayName', 'role', 'status', 'publicKeyBase64', 'keyFingerprint', 'online', 'lastSeenAt', 'inviteCodeId', 'phoneE164', 'createdAt', 'updatedAt']) &&
+                       isValidMemberProfile(incoming()) &&
+                       (
+                         // Sole Super Admin self-bootstrap
+                         (isSuperAdminToken() && incoming().role == 'SUPER_ADMIN' && incoming().status == 'ACTIVE') ||
+                         // Invited Member atomic registration via single-use invitation code
+                         (
+                           incoming().role == 'MEMBER' &&
+                           ('inviteCodeId' in incoming()) &&
+                           isValidId(incoming().inviteCodeId) &&
+                           get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeId)).data.used == false &&
+                           get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeId)).data.revoked == false &&
+                           get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeId)).data.expiresAt > request.time &&
+                           getAfter(/databases/$(database)/documents/invitations/$(incoming().inviteCodeId)).data.used == true &&
+                           getAfter(/databases/$(database)/documents/invitations/$(incoming().inviteCodeId)).data.usedByUid == request.auth.uid &&
+                           (
+                             (get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeId)).data.autoApprove == true && incoming().status == 'ACTIVE') ||
+                             (get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeId)).data.autoApprove == false && incoming().status == 'PENDING')
+                           )
+                         )
+                       );
+
+      allow update: if isSignedIn() &&
+                       isValidId(uid) &&
+                       isValidMemberProfile(incoming()) &&
+                       incoming().uid == existing().uid &&
+                       incoming().username == existing().username &&
+                       incoming().role == existing().role &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         // Super Admin can approve, suspend, reactivate, or update member status
+                         (isSuperAdminToken() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'displayName', 'updatedAt'])) ||
+                         // Member can update only presence, keys, displayName, and phone
+                         (request.auth.uid == uid &&
+                          existing().status != 'SUSPENDED' &&
+                          incoming().status == existing().status &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'publicKeyBase64', 'keyFingerprint', 'online', 'lastSeenAt', 'phoneE164', 'updatedAt']))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(uid) && isSuperAdminToken() && uid != request.auth.uid;
+    }
+
+    // 2. Private member secrets (PBKDF2 hashes & PII — strictly isolated)
+    match /member_secrets/{uid} {
+      allow get: if isSignedIn() && isValidId(uid) && (request.auth.uid == uid || isSuperAdminToken());
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isSuperAdminToken());
+
+      allow create: if isSignedIn() &&
+                       isValidId(uid) &&
+                       request.auth.uid == uid &&
+                       incoming().uid == uid &&
+                       incoming().keys().hasAll(['uid', 'username', 'passwordHash', 'passwordSalt', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['uid', 'username', 'passwordHash', 'passwordSalt', 'email', 'createdAt', 'updatedAt']) &&
+                       isValidMemberSecret(incoming()) &&
+                       existsAfter(/databases/$(database)/documents/members/$(uid));
+
+      allow update: if isSignedIn() &&
+                       isValidId(uid) &&
+                       (request.auth.uid == uid || isSuperAdminToken()) &&
+                       isValidMemberSecret(incoming()) &&
+                       incoming().uid == existing().uid &&
+                       incoming().username == existing().username &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['passwordHash', 'passwordSalt', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(uid) && (request.auth.uid == uid || isSuperAdminToken());
+    }
+
+    // 3. Username reservation directory (lookup by exact ID only; listing forbidden)
+    match /username_directory/{usernameLower} {
+      allow get: if isSignedIn() && isValidId(usernameLower);
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidId(usernameLower) &&
+                       incoming().uid == request.auth.uid &&
+                       incoming().username == usernameLower &&
+                       incoming().keys().hasAll(['uid', 'username', 'createdAt']) &&
+                       incoming().keys().hasOnly(['uid', 'username', 'createdAt']) &&
+                       isValidUsernameEntry(incoming()) &&
+                       existsAfter(/databases/$(database)/documents/members/$(request.auth.uid));
+
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(usernameLower) && (existing().uid == request.auth.uid || isSuperAdminToken());
+    }
+
+    // 4. Single-use Super Admin invitation codes
+    match /invitations/{codeId} {
+      // Allow get for signed-in user holding the exact code ID; listing is strictly Super Admin only
+      allow get: if isSignedIn() && isValidId(codeId);
+      allow list: if isSuperAdminToken();
+
+      allow create: if isSuperAdminToken() &&
+                       isValidId(codeId) &&
+                       incoming().createdByUid == request.auth.uid &&
+                       incoming().used == false &&
+                       incoming().revoked == false &&
+                       incoming().expiresAt > request.time &&
+                       incoming().keys().hasAll(['createdByUid', 'label', 'autoApprove', 'used', 'revoked', 'expiresAt', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['createdByUid', 'label', 'autoApprove', 'used', 'revoked', 'usedByUid', 'usedByUsername', 'expiresAt', 'createdAt', 'updatedAt']) &&
+                       isValidInvitation(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(codeId) &&
+                       isValidInvitation(incoming()) &&
+                       incoming().createdByUid == existing().createdByUid &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().expiresAt == existing().expiresAt &&
+                       incoming().autoApprove == existing().autoApprove &&
+                       (
+                         // Super Admin can revoke an unused invitation
+                         (isSuperAdminToken() && existing().used == false && incoming().used == false &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['revoked', 'updatedAt'])) ||
+                         // Invited user atomically redeems unused, unrevoked, unexpired code with member creation
+                         (existing().used == false &&
+                          existing().revoked == false &&
+                          existing().expiresAt > request.time &&
+                          incoming().used == true &&
+                          incoming().revoked == false &&
+                          incoming().usedByUid == request.auth.uid &&
+                          incoming().usedByUsername is string &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['used', 'usedByUid', 'usedByUsername', 'updatedAt']) &&
+                          existsAfter(/databases/$(database)/documents/members/$(request.auth.uid)))
+                       );
+
+      allow delete: if isSuperAdminToken() && isValidId(codeId);
+    }
+
+    // 5. Conversations (1-to-1 and Group)
+    match /conversations/{conversationId} {
+      allow get: if isSignedIn() && isValidId(conversationId) &&
+                    (request.auth.uid in resource.data.participantUids || isSuperAdminToken());
+      allow list: if isSignedIn() &&
+                     (request.auth.uid in resource.data.participantUids || isSuperAdminToken());
+
+      allow create: if isSignedIn() &&
+                       isValidId(conversationId) &&
+                       incoming().adminUid == request.auth.uid &&
+                       request.auth.uid in incoming().participantUids &&
+                       incoming().keys().hasAll(['type', 'title', 'participantUids', 'adminUid', 'lastMessagePreview', 'disappearingSeconds', 'typingUids', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['type', 'title', 'participantUids', 'adminUid', 'lastMessagePreview', 'lastMessageAt', 'disappearingSeconds', 'typingUids', 'createdAt', 'updatedAt']) &&
+                       isValidConversation(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(conversationId) &&
+                       isValidConversation(incoming()) &&
+                       incoming().type == existing().type &&
+                       incoming().adminUid == existing().adminUid &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         ((request.auth.uid == existing().adminUid || isSuperAdminToken()) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'participantUids', 'lastMessagePreview', 'lastMessageAt', 'disappearingSeconds', 'typingUids', 'updatedAt'])) ||
+                         (request.auth.uid in existing().participantUids &&
+                          incoming().participantUids == existing().participantUids &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['lastMessagePreview', 'lastMessageAt', 'disappearingSeconds', 'typingUids', 'updatedAt']))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(conversationId) &&
+                       (existing().adminUid == request.auth.uid || isSuperAdminToken());
+
+      // 6. Encrypted Chat Messages (denormalized participantUids for zero-get allow list)
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(conversationId) && isValidId(messageId) &&
+                      (request.auth.uid in resource.data.participantUids || isSuperAdminToken());
+        allow list: if isSignedIn() &&
+                       (request.auth.uid in resource.data.participantUids || isSuperAdminToken());
+
+        allow create: if isSignedIn() &&
+                         isValidId(conversationId) &&
+                         isValidId(messageId) &&
+                         incoming().conversationId == conversationId &&
+                         incoming().senderUid == request.auth.uid &&
+                         request.auth.uid in incoming().participantUids &&
+                         incoming().keys().hasAll(['conversationId', 'senderUid', 'senderUsername', 'participantUids', 'messageType', 'ciphertextBase64', 'ivBase64', 'encryptionScheme', 'deliveryStatus', 'readByUids', 'edited', 'deleted', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['conversationId', 'senderUid', 'senderUsername', 'participantUids', 'messageType', 'ciphertextBase64', 'ivBase64', 'encryptionScheme', 'attachmentName', 'attachmentMimeType', 'attachmentSizeBytes', 'voiceDurationMs', 'deliveryStatus', 'readByUids', 'edited', 'deleted', 'expiresAt', 'createdAt', 'updatedAt']) &&
+                         isValidChatMessage(incoming()) &&
+                         exists(/databases/$(database)/documents/conversations/$(conversationId)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantUids;
+
+        allow update: if isSignedIn() &&
+                         isValidId(conversationId) &&
+                         isValidId(messageId) &&
+                         isValidChatMessage(incoming()) &&
+                         incoming().conversationId == existing().conversationId &&
+                         incoming().senderUid == existing().senderUid &&
+                         incoming().senderUsername == existing().senderUsername &&
+                         incoming().participantUids == existing().participantUids &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           (existing().senderUid == request.auth.uid &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['ciphertextBase64', 'ivBase64', 'edited', 'deleted', 'deliveryStatus', 'readByUids', 'updatedAt'])) ||
+                           (request.auth.uid in existing().participantUids &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['deliveryStatus', 'readByUids', 'updatedAt']))
+                         );
+
+        allow delete: if isSignedIn() && isValidId(conversationId) && isValidId(messageId) &&
+                         (existing().senderUid == request.auth.uid || isSuperAdminToken());
+      }
+    }
+  }
+}
